@@ -1,0 +1,15 @@
+# Build artifacts
+build/
+
+# ESP-IDF dependencies
+dependencies.lock
+managed_components/
+
+# IDE files
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store

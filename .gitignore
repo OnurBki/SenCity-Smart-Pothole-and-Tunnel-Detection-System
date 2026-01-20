@@ -4,6 +4,7 @@ build/
 # ESP-IDF dependencies
 dependencies.lock
 managed_components/
+sdkconfig.old
 
 # IDE files
 .vscode/

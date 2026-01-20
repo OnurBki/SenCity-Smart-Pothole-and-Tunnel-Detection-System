@@ -12,7 +12,7 @@ void light_init(void)
     };
     ESP_ERROR_CHECK(adc_oneshot_new_unit(&init_config1, &adc1_handle));
 
-    // 2. Configure Channel (GPIO 34)
+    // 2. Configure Channel (GPIO 32)
     adc_oneshot_chan_cfg_t config = {
         .bitwidth = ADC_BITWIDTH_12, // 12-bit resolution (0-4095)
         .atten = ADC_ATTEN_DB_12,    // Allow measuring voltages up to ~3.3V

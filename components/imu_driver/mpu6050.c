@@ -3,7 +3,7 @@
 
 static const char *TAG = "IMU_DRIVER";
 
-// Keeping these handles static so they are accessible only in this file
+// Keep these handles static so they are accessible only in this file
 static i2c_master_bus_handle_t bus_handle;
 static i2c_master_dev_handle_t dev_handle;
 
@@ -33,12 +33,12 @@ esp_err_t mpu6050_init(void)
     ESP_ERROR_CHECK(i2c_master_bus_add_device(bus_handle, &dev_config, &dev_handle));
     
     // Register 0x1A (CONFIG)
-    // Value 0x03 = Bandwidth ~44Hz (Delay ~4.9ms)
-    // This physically ignores high-frequency log-energy "clicks"
+    // Value 0x02 = Bandwidth ~94Hz (Delay ~3.0ms)
+    // Physically ignores high-frequency low-energy events (vibrations)
     uint8_t dlpf_config[] = {MPU6050_CONFIG_REG, 0x02};
     ESP_ERROR_CHECK(i2c_master_transmit(dev_handle, dlpf_config, sizeof(dlpf_config), -1));
 
-    ESP_LOGI(TAG, "MPU6050 Initialized with DLPF @ 44Hz");
+    ESP_LOGI(TAG, "MPU6050 Initialized with DLPF @ 94Hz");
     return ESP_OK;
 }
 
@@ -48,7 +48,7 @@ uint8_t mpu6050_read_who_am_i(void)
     uint8_t data = 0;
 
     // The New API: "Transmit then Receive" (Write Register Addr -> Read Data)
-    // This handles the Start/RepeatedStart/Stop bits automatically.
+    // Handles the Start/RepeatedStart/Stop bits automatically.
     esp_err_t err = i2c_master_transmit_receive(
         dev_handle, 
         &reg_addr, 
@@ -71,7 +71,6 @@ esp_err_t mpu6050_wake_up(void)
     // The MPU6050 sleeps by default. Write 0 to PWR_MGMT_1 to wake it up.
     uint8_t data[] = {PWR_MGMT_1_REG, 0x00};
     
-    // In v6 new driver, simple writes use transmit
     return i2c_master_transmit(dev_handle, data, sizeof(data), -1);
 }
 

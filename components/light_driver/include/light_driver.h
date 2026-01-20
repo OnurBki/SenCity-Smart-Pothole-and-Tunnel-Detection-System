@@ -7,6 +7,6 @@
 #define LDR_ADC_CHANNEL ADC_CHANNEL_4 
 
 void light_init(void);
-uint32_t light_get_level(void); // Returns 0 (Dark) - 4095 (Bright)
+uint32_t light_get_level(void); // Returns 0 (Bright) - 4095 (Dark)
 
 #endif

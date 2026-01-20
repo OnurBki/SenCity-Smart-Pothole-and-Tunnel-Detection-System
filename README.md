@@ -1,69 +1,147 @@
-| Supported Targets | ESP32 | ESP32-C2 | ESP32-C3 | ESP32-C5 | ESP32-C6 | ESP32-C61 | ESP32-H2 | ESP32-H21 | ESP32-H4 | ESP32-P4 | ESP32-S2 | ESP32-S3 |
-| ----------------- | ----- | -------- | -------- | -------- | -------- | --------- | -------- | --------- | -------- | -------- | -------- | -------- |
+# SenCity: Intelligent Urban Audit Node
 
-# Blink Example
+**A Low-Cost, Edge-Computing Solution for Road Safety & Infrastructure Analysis**
 
-(See the README.md file in the upper level 'examples' directory for more information about examples.)
+CitySense is an embedded IoT device designed to audit urban infrastructure automatically. It uses **Sensor Fusion** to detect road hazards (potholes) and environmental conditions (lighting failures/tunnels) simultaneously. Unlike traditional trackers, it operates as a "Blind Auditor," relying on physics and environmental data rather than GPS availability, making it effective even in tunnels or urban canyons.
 
-This example demonstrates how to blink a LED by using the GPIO driver or using the [led_strip](https://components.espressif.com/component/espressif/led_strip) library if the LED is addressable e.g. [WS2812](https://cdn-shop.adafruit.com/datasheets/WS2812B.pdf). The `led_strip` library is installed via [component manager](main/idf_component.yml).
+## Key Features
 
-## How to Use Example
+* **Dynamic Pothole Detection:**
+  * Uses an **MPU6050 Accelerometer** with a **94Hz Hardware DLPF** (Digital Low Pass Filter) to physically ignore engine vibration.
+  * Implements a **Software High-Pass Filter** to isolate sudden shocks from gravity (slopes/hills).
+  * Distinguishes between "Minor Bumps" and "Critical Potholes."
 
-Before project configuration and build, be sure to set the correct chip target using `idf.py set-target <chip_name>`.
+* **Intelligent Lighting Analysis:**
+  * Detects "Dark Zones" (Unlit roads or Tunnels) using an **LDR Sensor** with **Hysteresis Logic**.
+  * Automatically correlates road hazards with lighting conditions (e.g., *"Critical Pothole detected inside unlit Tunnel"*).
 
-### Hardware Required
+* **Wireless "Black Box" Data Retrieval:**
+  * No USB cables required. The device broadcasts its own Wi-Fi Network (**SenCity_AP**).
+  * Embedded Web Server hosts the data logs (`log.csv`) for instant download to a smartphone.
 
-* A development board with normal LED or addressable LED on-board (e.g., ESP32-S3-DevKitC, ESP32-C6-DevKitC etc.)
-* A USB cable for Power supply and programming
+* **Instant Feedback:**
+  * **Active Buzzer:** Beeps immediately upon detecting a major hazard.
+  * **Auto-Headlights (LED):** Turns on automatically when entering dark environments/tunnels.
 
-See [Development Boards](https://www.espressif.com/en/products/devkits) for more information about it.
+## Hardware Architecture
 
-### Configure the Project
+### Components Required
 
-Open the project configuration menu (`idf.py menuconfig`).
+1. **ESP32 Development Board** (WROOM-32)
+2. **MPU6050** (6-Axis IMU - Accelerometer/Gyro)
+3. **LDR Module** (Light Dependent Resistor - Analog Type)
+4. **Active Buzzer** (5V or 3.3V)
+5. **Standard LED** + 220Ω Resistor
 
-In the `Example Configuration` menu:
+### Wiring Diagram
 
-* Select the LED type in the `Blink LED type` option.
-  * Use `GPIO` for regular LED
-  * Use `LED strip` for addressable LED
-* If the LED type is `LED strip`, select the backend peripheral
-  * `RMT` is only available for ESP targets with RMT peripheral supported
-  * `SPI` is available for all ESP targets
-* Set the GPIO number used for the signal in the `Blink GPIO number` option.
-* Set the blinking period in the `Blink period in ms` option.
+| Module | Pin Name | ESP32 Pin | Function |
+| :--- | :--- | :--- | :--- |
+| **MPU6050** | VCC | 3.3V | Power |
+| | GND | GND | Ground |
+| | SCL | **GPIO 22** | I2C Clock |
+| | SDA | **GPIO 21** | I2C Data |
+| **LDR Sensor** | VCC | 3.3V | Power |
+| | GND | GND | Ground |
+| | **AO** (Signal) | **GPIO 34** | Analog Light Measurement |
+| **Buzzer** | I/O (+) | **GPIO 13** | Audio Alert Trigger |
+| | GND (-) | GND | Ground |
+| **Indicator LED** | Anode (+) | **GPIO 12** | Tunnel Status Indicator |
+| | Cathode (-) | GND | Via 220Ω Resistor |
 
-### Build and Flash
+**Note:** If using a raw LDR instead of a module, wire it in a Voltage Divider configuration with a 10kΩ resistor.*
 
-Run `idf.py -p PORT flash monitor` to build, flash and monitor the project.
+## Circuit Diagram
 
-(To exit the serial monitor, type ``Ctrl-]``.)
+![SenCity Circuit Diagram](./assets/circuit_diagram.png)
 
-See the [Getting Started Guide](https://docs.espressif.com/projects/esp-idf/en/latest/get-started/index.html) for full steps to configure and use ESP-IDF to build projects.
+## Software Architecture
 
-## Example Output
+The firmware is built on **ESP-IDF v6.0+** using **FreeRTOS** to manage real-time tasks on the ESP32's dual cores.
 
-As you run the example, you will see the LED blinking, according to the previously defined period. For the addressable LED, you can also change the LED color by setting the `led_strip_set_pixel(led_strip, 0, 16, 16, 16);` (LED Strip, Pixel Number, Red, Green, Blue) with values from 0 to 255 in the [source file](main/blink_example_main.c).
+### Task Allocation
 
-```text
-I (315) example: Example configured to blink addressable LED!
-I (325) example: Turning the LED OFF!
-I (1325) example: Turning the LED ON!
-I (2325) example: Turning the LED OFF!
-I (3325) example: Turning the LED ON!
-I (4325) example: Turning the LED OFF!
-I (5325) example: Turning the LED ON!
-I (6325) example: Turning the LED OFF!
-I (7325) example: Turning the LED ON!
-I (8325) example: Turning the LED OFF!
+* **Core 1 (High Priority): `sensor_task`**
+  * Running at **50Hz (20ms)**.
+  * Handles MPU6050 readings, Gravity Filtering ($\alpha=0.9$), and Shock classification.
+  * This core is dedicated to "Physics" to ensure no impact is missed.
+
+* **Core 0 (Medium Priority): `light_task`**
+  * Running at **2Hz (500ms)**.
+  * Polls the LDR sensor.
+  * Manages Wi-Fi events and Web Server requests.
+  * Controls the LED based on Tunnel Entry/Exit thresholds.
+
+### Data Storage (SPIFFS)
+
+Events are logged to the ESP32's internal flash memory partition (`storage`).
+
+**Log Format:**
+```csv
+Time(ms), Shock_Magnitude, Light_Level
+45200, 15402, 3800
+45800, 9200, 3850
+```
+## Installation & Usage
+
+### 1. Build & Flash
+
+Ensure you have the ESP-IDF environment installed.
+
+```bash
+# 1. Configure Partition Table (Use custom partitions.csv)
+idf.py menuconfig 
+# (Partition Table -> Custom partition table CSV -> partitions.csv)
+
+# 2. Build and Flash
+idf.py build flash monitor
 ```
 
-Note: The color order could be different according to the LED model.
+### 2. Operation (The Workflow)
 
-The pixel number indicates the pixel position in the LED strip. For a single LED, use 0.
+1. **Boot Up:** The device initializes sensors. If `storage` is detected, it prepares the log file.
+2. **Drive:** Place the device on the dashboard.
+   * **Entering a Tunnel:** The LED will turn **ON**.
+   * **Hitting a Pothole:** The Buzzer will **BEEP**.
+3. **Data Retrieval:**
+   * Park the vehicle.
+   * Connect your phone/laptop to Wi-Fi SSID: **`CitySense_AP`** (Password: `12345678`).
+   * Open a browser and go to: **`http://192.168.4.1`**
+   * Click **"Download Logs"** to save the CSV file.
+   * Click **"Clear Logs"** to wipe memory for the next run.
 
-## Troubleshooting
+## Calibration & Tuning
 
-* If the LED isn't blinking, check the GPIO or the LED type selection in the `Example Configuration` menu.
+All thresholds are defined as Macros in `main.c` for easy tuning.
 
-For any technical queries, please open an [issue](https://github.com/espressif/esp-idf/issues) on GitHub. We will get back to you soon.
+### Shock Thresholds (Raw Acceleration)
+
+| Macro | Value | Description |
+| :--- | :--- | :--- |
+| `THRESHOLD_SHOCK_NOISE` | `4000` | Filters out engine vibration and smooth road texture. |
+| `THRESHOLD_SHOCK_MINOR` | `9000` | Detects small bumps, manhole covers, or cat-eyes. |
+| `THRESHOLD_SHOCK_MAJOR` | `15000` | Detects critical hazards capable of damaging suspension. |
+
+### Light Thresholds (0 - 4095)
+
+*Assumes Reversed Logic (Pull-up LDR): High Value = Dark.*
+
+* **`THRESHOLD_LDR_ENTER_TUNNEL` (3000):** If value exceeds this, system assumes Tunnel Entry.
+* **`THRESHOLD_LDR_EXIT_TUNNEL` (2000):** If value drops below this, system assumes Tunnel Exit.
+* *The gap between 2000 and 3000 acts as Hysteresis to prevent flickering.*
+
+## Project Structure
+
+```text
+CitySense/
+├── CMakeLists.txt          # Build configuration
+├── partitions.csv          # SPIFFS Storage layout
+├── components/
+│   ├── imu_driver/         # MPU6050 Logic & Hardware Filter setup
+│   ├── light_driver/       # ADC OneShot driver for LDR
+│   ├── storage/            # SPIFFS File System wrapper
+│   ├── wifi_driver/        # SoftAP & Netif Logic
+│   └── web_server/         # HTTP Server for file download
+└── main/
+    └── main.c              # Core Logic (Tasks, Fusion, State Machine)
+```

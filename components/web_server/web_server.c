@@ -6,7 +6,7 @@
 
 static const char *TAG = "SERVER";
 
-/* Handler to download the log file */
+// Handler to download the log file
 static esp_err_t download_get_handler(httpd_req_t *req)
 {
     FILE* f = fopen("/spiffs/log.csv", "r");
@@ -35,7 +35,7 @@ static esp_err_t download_get_handler(httpd_req_t *req)
     return ESP_OK;
 }
 
-/* Handler to clear logs */
+// Handler to clear logs
 static esp_err_t clear_get_handler(httpd_req_t *req)
 {
     // Re-open in 'w' mode to wipe it, then close
@@ -50,7 +50,7 @@ static esp_err_t clear_get_handler(httpd_req_t *req)
     return ESP_OK;
 }
 
-/* Handler for Root / (Instruction Page) */
+// Handler for Root / (Instruction Page)
 static esp_err_t root_get_handler(httpd_req_t *req)
 {
     const char* resp_str = 
@@ -61,7 +61,7 @@ static esp_err_t root_get_handler(httpd_req_t *req)
     return ESP_OK;
 }
 
-/* URI Configs */
+// URI Configs
 static const httpd_uri_t uri_download = { .uri = "/log", .method = HTTP_GET, .handler = download_get_handler };
 static const httpd_uri_t uri_clear = { .uri = "/clear", .method = HTTP_GET, .handler = clear_get_handler };
 static const httpd_uri_t uri_root = { .uri = "/", .method = HTTP_GET, .handler = root_get_handler };
@@ -69,7 +69,7 @@ static const httpd_uri_t uri_root = { .uri = "/", .method = HTTP_GET, .handler =
 void start_webserver(void)
 {
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
-    config.stack_size = 8192; // Give server enough RAM
+    config.stack_size = 8192; // Give server enough RAM (8KB)
     
     httpd_handle_t server = NULL;
     if (httpd_start(&server, &config) == ESP_OK) {

@@ -28,8 +28,8 @@ static const char *TAG = "CITY_SENSE";
 #define THRESHOLD_SHOCK_MAJOR       15000 
 
 // --- LIGHT SENSOR TUNING (0-4095) ---
-// Lower value = Darker
-// We use two values (Hysteresis) to prevent flickering at the tunnel entrance.
+// Higher value = Darker
+// Two values (Hysteresis) to prevent flickering at the tunnel entrance.
 #define THRESHOLD_LDR_ENTER_TUNNEL  3000   // Must rise above this to enter
 #define THRESHOLD_LDR_EXIT_TUNNEL   2000  // Must fall below this to exit
 
@@ -37,9 +37,9 @@ static const char *TAG = "CITY_SENSE";
 #define FILTER_ALPHA                0.9f  // Gravity filter strength (0.0 - 1.0)
 #define SAMPLING_RATE_MS            20    // 50Hz Sensor Loop
 #define LIGHT_CHECK_RATE_MS         500   // 2Hz Light Loop
-#define DEBOUNCE_MAJOR_MS           1000  // Sleep after big hit
-#define DEBOUNCE_MINOR_MS           500   // Sleep after small hit
-#define BEEP_DURATION_MS            500   // Buzzer beep length
+#define DEBOUNCE_MAJOR_MS           1000  // Debounce after big hit
+#define DEBOUNCE_MINOR_MS           500   // Debounce after small hit
+#define BEEP_DURATION_MS            500   // Buzzer beep length (ms)
 
 // --- GLOBAL STATE ---
 volatile bool is_tunnel_active = false;
@@ -76,11 +76,11 @@ void light_task(void *pvParameter)
 
         if (is_tunnel_active) {
             // STATE: INSIDE TUNNEL (Dark)
-            // We look for LOW numbers (Bright) to exit
+            // Look for LOW numbers (Bright) to exit
             if (current_light < THRESHOLD_LDR_EXIT_TUNNEL) {
                 is_tunnel_active = false;
 
-                // --- ACTION: LIGHTS OFF ---
+                // ACTION: LIGHTS OFF
                 gpio_set_level(CONFIG_LED_PIN, 0);
 
                 ESP_LOGI("LIGHT", "<<< TUNNEL EXIT (Level: %lu)", current_light);
@@ -88,11 +88,11 @@ void light_task(void *pvParameter)
         } 
         else {
             // STATE: OUTDOORS (Bright)
-            // We look for HIGH numbers (Dark) to enter
+            // Look for HIGH numbers (Dark) to enter
             if (current_light > THRESHOLD_LDR_ENTER_TUNNEL) {
                 is_tunnel_active = true;
 
-                // --- ACTION: LIGHTS ON ---
+                // ACTION: LIGHTS ON
                 gpio_set_level(CONFIG_LED_PIN, 1);
                 
                 ESP_LOGW("LIGHT", ">>> TUNNEL ENTRY (Level: %lu)", current_light);
@@ -200,7 +200,6 @@ void app_main(void)
     start_webserver();
 
     // --- 4. START SENSORS ---
-    // (Assuming light_task and sensor_task are defined above)
     xTaskCreatePinnedToCore(light_task, "light_task", 4096, NULL, 5, NULL, 0);
     xTaskCreatePinnedToCore(sensor_task, "sensor_task", 4096, NULL, 5, NULL, 1);
 }

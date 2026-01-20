@@ -7,7 +7,7 @@
 
 static const char *TAG = "WIFI";
 
-#define ESP_WIFI_SSID      "CitySense_AP"
+#define ESP_WIFI_SSID      "SenCity_AP"
 #define ESP_WIFI_PASS      "12345678"
 #define ESP_WIFI_CHANNEL   1
 #define MAX_STA_CONN       4
